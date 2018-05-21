@@ -2,12 +2,13 @@ package install
 
 
 import (
-	"errors"
+	//"errors"
 	"strings"
 	"strconv"
 	"time"
 	"os"
 	"github.com/ielizaga/piv-go-gpdb/core"
+	"errors"
 )
 
 // GPCC Installer
@@ -56,10 +57,17 @@ func InstalSingleNodeGPCC()  error {
 	if err != nil { return err }
 
 	// Extract the binaries.
+	// old installation
+	var SoftwareLocation = ""
 	BinaryInstallLocation = "/usr/local/greenplum-cc-web-dbv-" + core.RequestedInstallVersion + "-ccv-" + core.RequestedCCInstallVersion
-	var script_option = []string{"yes", BinaryInstallLocation, "yes", "yes"}
-	err = ExecuteBinaries(binary_file, InstallGPDBBashFileName, script_option)
-	if err != nil { return err }
+	if strings.HasPrefix(core.RequestedCCInstallVersion, "1") || strings.HasPrefix(core.RequestedCCInstallVersion, "2") || strings.HasPrefix(core.RequestedCCInstallVersion, "3") {
+		var script_option = []string{"yes", BinaryInstallLocation, "yes", "yes"}
+		err = ExecuteBinaries(binary_file, InstallGPDBBashFileName, script_option)
+		if err != nil { return err }
+	} else { // newer installation
+		SoftwareLocation = "/gpccinstall-" + core.RequestedCCInstallVersion
+	}
+
 
 	// If this the first time then GPPERFHOME would not be there
 	// on the environment file, so we update the global variable here
@@ -103,7 +111,12 @@ func InstalSingleNodeGPCC()  error {
 	// Install the GPCC Web UI without WLM
 	cc_name := "gpcc_" + core.RequestedInstallVersion + "_" + core.RequestedCCInstallVersion + "_" + t
 	cc_name = strings.Replace(cc_name, ".", "", -1)
-	_ = InstallGPCCWEBUI(cc_name, ccp)
+	if strings.HasPrefix(core.RequestedCCInstallVersion, "1") || strings.HasPrefix(core.RequestedCCInstallVersion, "2") || strings.HasPrefix(core.RequestedCCInstallVersion, "3") {
+		_ = InstallGPCCWEBUI(cc_name, ccp)
+	} else {
+		var script_option = []string{"y", BinaryInstallLocation, cc_name, GPCC_PORT, "n", "n"}
+		err = ExecuteBinaries(binary_file, SoftwareLocation, script_option)
+	}
 
 	// Start the GPCC Web UI
 	err = StartGPCC(cc_name, BinaryInstallLocation)

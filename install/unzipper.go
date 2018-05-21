@@ -9,6 +9,7 @@ import (
 	"archive/zip"
 	"strings"
 	"github.com/ielizaga/piv-go-gpdb/core"
+	"github.com/mholt/archiver"
 )
 
 // Provides all the files in the directory
@@ -38,66 +39,74 @@ func GetBinaryOfMatchingVersion(files []string, version string) (string, error) 
 }
 
 // Unzip the provided file.
-func Unzip(src, dest string) error {
+func Unzip(src, dest, version string) error {
 
 	// unzip the file
 	log.Info("Unzipping the zip file: " + src)
-	r, err := zip.OpenReader(src)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := r.Close(); err != nil {
-			panic(err)
-		}
-	}()
 
-	os.MkdirAll(dest, 0755)
-
-	// Closure to address file descriptors issue with all the deferred .Close() methods
-	extractAndWriteFile := func(f *zip.File) error {
-		rc, err := f.Open()
+	if strings.HasPrefix(version, "1") || strings.HasPrefix(version, "2") || strings.HasPrefix(version, "3") {
+		log.Info("Using the older version of unzipper since this is a old version of command center")
+		r, err := zip.OpenReader(src)
 		if err != nil {
 			return err
 		}
 		defer func() {
-			if err := rc.Close(); err != nil {
+			if err := r.Close(); err != nil {
 				panic(err)
 			}
 		}()
 
-		// there is no consistency in the name of binaries, so here we will ensure the
-		// binary name is equal to the zip file name
-		filename := strings.Replace(src, ".zip", ".bin", 1)
-		path := filename
+		os.MkdirAll(dest, 0755)
 
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(path, f.Mode())
-		} else {
-			os.MkdirAll(filepath.Dir(path), f.Mode())
-			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		// Closure to address file descriptors issue with all the deferred .Close() methods
+		extractAndWriteFile := func(f *zip.File) error {
+			rc, err := f.Open()
 			if err != nil {
 				return err
 			}
 			defer func() {
-				if err := f.Close(); err != nil {
+				if err := rc.Close(); err != nil {
 					panic(err)
 				}
 			}()
 
-			_, err = io.Copy(f, rc)
+			// there is no consistency in the name of binaries, so here we will ensure the
+			// binary name is equal to the zip file name
+			filename := strings.Replace(src, ".zip", ".bin", 1)
+			path := filename
+
+			if f.FileInfo().IsDir() {
+				os.MkdirAll(path, f.Mode())
+			} else {
+				os.MkdirAll(filepath.Dir(path), f.Mode())
+				f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+				if err != nil {
+					return err
+				}
+				defer func() {
+					if err := f.Close(); err != nil {
+						panic(err)
+					}
+				}()
+
+				_, err = io.Copy(f, rc)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		for _, f := range r.File {
+			err := extractAndWriteFile(f)
 			if err != nil {
 				return err
 			}
 		}
-		return nil
-	}
-
-	for _, f := range r.File {
-		err := extractAndWriteFile(f)
-		if err != nil {
-			return err
-		}
+	} else { // Newer version directory is different ( i.e from 4.x onwards )
+		log.Info("Using the updated version of unzipper for the newer version of command center")
+		err := archiver.Zip.Open(src, dest)
+		if err != nil { return err }
 	}
 
 	return nil
@@ -120,7 +129,7 @@ func UnzipBinary(version string) (string, error) {
 
 	// Check if the file is a zip file found or Unzip and do work accordingly
 	if strings.HasSuffix(binary_file, ".zip") {
-		err := Unzip(binary_file, core.DownloadDir)
+		err := Unzip(binary_file, core.DownloadDir, version)
 		binary_file = strings.Replace(binary_file, ".zip", ".bin", 1)
 		return binary_file, err
 	} else {
