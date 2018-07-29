@@ -43,6 +43,8 @@ func Prompt_choice(TotalOptions int) int {
 // Prompt for confirmation
 func YesOrNoConfirmation() string {
 
+	var YesOrNo = map[string]string{"y":"y", "ye":"y", "yes":"y", "n":"n", "no":"n" }
+
 	// Start the new scanner to get the user input
 	fmt.Print("You can use \"gpdb env -v <version>\" to set the env, do you wish to continue (Yy/Nn)?: ")
 	input := bufio.NewScanner(os.Stdin)

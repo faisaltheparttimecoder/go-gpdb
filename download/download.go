@@ -1,277 +1,262 @@
 package download
 
 import (
-	"fmt"
-	"encoding/json"
-	"errors"
-	"strings"
 	"github.com/op/go-logging"
-	"github.com/ielizaga/piv-go-gpdb/core"
+	"github.com/ielizaga/piv-go-gpdb/config"
+	"fmt"
 )
 
+// All the PivNet Url's & Constants
+const (
+	EndPoint = "https://network.pivotal.io"
+	Authentication = EndPoint + "/api/v2/authentication"
+	RefreshToken = EndPoint + "/api/v2/authentication/access_tokens"
+	Products =  EndPoint + "/api/v2/products"
+	ProductSlug = "pivotal-gpdb" // we only care about this slug rest we ignore
+	DBServer = "Database Server"
+	GPCC = "Greenplum Command Center"
+)
+
+// Logger
 var (
 	log = logging.MustGetLogger("gpdb")
+	FileNameContains = []string{
+		"Red Hat Enterprise Linux",
+		"RedHat Entrerprise Linux",
+		"RedHat Enterprise Linux",
+		"REDHAT ENTERPRISE LINUX",
+		"RHEL",
+		"Binary Installer for RHEL",
+		"Binary Installer for RHEL 7"}
+	IgnoreFileExtensions = []string{
+		"RPM for RHEL",
+		"Binary Installer for RHEL 6"}
 )
 
-// Extract all the Pivotal Network Product from the Product API page.
-func extract_product() (ProductObjects, error) {
+// Struct to where all the API response will be stored
+type HrefType struct {
+	Href string `json:"href"`
+}
 
-	log.Info("Obtaining the product ID")
+type LinksType struct {
+	Self   HrefType `json:"self"`
+	Releases   HrefType `json:"releases"`
+	Product_files   HrefType `json:"product_files"`
+	File_groups   HrefType `json:"file_groups"`
+	Signature_file_download HrefType `json:"signature_file_download"`
+	Eula_acceptance HrefType `json:"eula_acceptance"`
+	User_groups HrefType `json:"user_groups"`
+	Download HrefType `json:"download"`
+}
 
-	// Get the API from the Pivotal Products URL
-	ProductApiResponse, err := GetApi("GET", Products, false, "", 0)
-	if err != nil {return ProductObjects{}, err}
+type ProductObjType struct {
+	Id int `json:"id"`
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+	Logo_url string `json:"logo_url"`
+	Links   LinksType `json:"_links"`
+}
 
-	// Store all the JSON on the Product struct
-	json.Unmarshal(ProductApiResponse, &ProductJsonType)
+type ProductObjects struct {
+	Products []ProductObjType `json:"products"`
+	Links LinksType `json:"_links"`
+}
 
-	// Return the struct
-	return ProductJsonType, nil
+type eulaType struct {
+	Id int `json:"id"`
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+	Links LinksType `json:"_links"`
+}
+
+type releaseObjType struct {
+	Id int `json:"id"`
+	Version string `json:"version"`
+	Release_type string `json:"release_type"`
+	Release_date string `json:"release_date"`
+	Release_notes_url string `json:"release_notes_url"`
+	Availability string `json:"availability"`
+	Description string `json:"description"`
+	Eula   eulaType `json:"eula"`
+	Eccn string `json:"eccn"`
+	License_exception string `json:"license_exception"`
+	Controlled bool `json:"controlled"`
+	Updated_at   string `json:"updated_at"`
+	Software_files_updated_at string `json:"software_files_updated_at"`
+	Links LinksType `json:"_links"`
+}
+
+type ReleaseObjects struct {
+	Release []releaseObjType `json:"releases"`
+	Links LinksType `json:"_links"`
+}
+
+type AuthToken struct {
+	RefreshToken string `json:"refresh_token"`
+	ReceivedToken string `json:"access_token"`
+}
+
+type DownloadOptions struct {
+	Product string
+	Version string
+	Install bool
+}
+
+type userChoice struct {
+	versionChoosen string
+	releaseLink string
+	DownloadURL string
+	ProductFileURL string
+	ProductFileName string
+	ProductFileSize int64
+}
+
+type verProdType struct {
+	Id int `json:"id"`
+	Aws_object_key string `json:"aws_object_key"`
+	File_version string `json:"file_version"`
+	Sha256 string `json:"sha256"`
+	Name string `json:"name"`
+	Links LinksType `json:"_links"`
+}
+
+type verFileGroupType struct {
+	Id int `json:"id"`
+	Name string `json:"name"`
+	Product_files []verProdType `json:"product_files"`
+}
+
+type VersionObjType struct {
+	Id int `json:"id"`
+	Version string `json:"version"`
+	Release_type string `json:"release_type"`
+	Release_date string `json:"release_date"`
+	Availability string `json:"availability"`
+	Eula   eulaType `json:"eula"`
+	End_of_support_date string `json:"end_of_support_date"`
+	End_of_guidance_date string `json:"end_of_guidance_date"`
+	Eccn string `json:"eccn"`
+	License_exception string `json:"license_exception"`
+	Controlled bool `json:"controlled"`
+	Product_files []verProdType `json:"product_files"`
+	File_groups []verFileGroupType `json:"file_groups"`
+	Updated_at   string `json:"updated_at"`
+	Software_files_updated_at string `json:"software_files_updated_at"`
+	Links LinksType `json:"_links"`
+}
+
+type VersionObjects struct {
+	VersionObjType
+}
+
+type ProductFilesObjType struct {
+	Id int `json:"id"`
+	Aws_object_key string `json:"aws_object_key"`
+	Description string `json:"description"`
+	Docs_url string `json:"docs_url"`
+	File_transfer_status string `json:"file_transfer_status"`
+	File_type string `json:"file_version"`
+	Has_signature_file string `json:"has_signature_file"`
+	Included_files []string `json:"included_files"`
+	Md5 string `json:"md5"`
+	Sha256 string `json:"sha256"`
+	Name string `json:"name"`
+	Ready_to_serve bool `json:"ready_to_serve"`
+	Released_at string `json:"released_at"`
+	Size int64 `json:"size"`
+	System_requirements []string `json:"system_requirements"`
+	Links LinksType `json:"_links"`
 }
 
 
-// Extract all the Releases of the product with slug : pivotal-gpdb
-func extract_release(productJson ProductObjects) (ReleaseObjects, error) {
-
-	// Check what is the URL for the all the releases for product of our interest
-	for _, product := range productJson.Products {
-		if product.Slug == ProductName {
-			ReleaseURL = product.Links.Releases.Href
-			PivotalProduct = product.Name
-		}
-	}
-
-	log.Info("Obtaining the releases for product: " + PivotalProduct)
-
-	// If we do find the release URL, lets continue
-	if ReleaseURL != "" {
-
-		// Extract all the releases
-		ReleaseApiResponse, err := GetApi("GET", ReleaseURL, false, "", 0)
-		if err != nil {return ReleaseObjects{}, err}
-
-		// Store all the releases on the release struct
-		json.Unmarshal(ReleaseApiResponse, &ReleaseJsonType)
-
-	} else { // Else lets error out
-		return ReleaseJsonType, errors.New("Cannot find any Release URL for slug ID: " + ProductName)
-	}
-
-	// Return the release struct
-	return ReleaseJsonType, nil
+type ProductFilesObjects struct {
+	Product_file ProductFilesObjType `json:"product_file"`
 }
 
-// provide choice of which version to download
-func show_available_version(ReleaseJson ReleaseObjects) (string, string, error) {
-
-	// Local storehouse
-	var version_selected string
-	var release string
-
-	// Get all the releases from the ReleaseJson
-	for _, release := range ReleaseJson.Release {
-		ReleaseOutputMap[release.Version] = release.Links.Self.Href
-		ReleaseVersion = append(ReleaseVersion, release.Version)
-	}
-
-	// Check if the user provided version is on the list we have just extracted
-	if core.Contains(ReleaseVersion, core.RequestedDownloadVersion) {
-		log.Info("Found the GPDB version \""+ core.RequestedDownloadVersion +"\" on PivNet, continuing..")
-		version_selected = ReleaseOutputMap[core.RequestedDownloadVersion]
-		release = core.RequestedDownloadVersion
-
-	} else { // If its not on the list then fallback to interactive mode
-
-		// Print warning if the user did provide a value of the version
-		if core.RequestedDownloadVersion != "" {
-			log.Warning("Unable to find the GPDB version \""+ core.RequestedDownloadVersion +"\" on PivNet, failing back to interactive mode..\n")
-		} else { // print a blank line
-			fmt.Println()
-		}
-
-		// Sort all the keys
-		for index, version := range ReleaseVersion {
-			fmt.Printf("%d: %s\n", index+1, version)
-		}
-
-		// Total accepted values that user can enter
-		TotalOptions := len(ReleaseVersion)
-
-		// Ask user for choice
-		users_choice := core.Prompt_choice(TotalOptions)
-
-		// Selected by the user
-		version_selected = ReleaseOutputMap[ReleaseVersion[users_choice-1]]
-		release = ReleaseVersion[users_choice-1]
-	}
-
-	return release, version_selected, nil
+type ResponseBody struct {
+	Token AuthToken
+	ProductList ProductObjects
+	ReleaseList ReleaseObjects
+	VersionList VersionObjects
+	Env config.EnvObjects
+	Flags DownloadOptions
+	UserRequest userChoice
+	EULALink string
+	productFiles ProductFilesObjects
+	download bool
 }
 
-// From the user choice extract all the files available on that version
-func extract_downloadURL(ver string, url string) (VersionObjects, error){
+// The main download web crawler
+func (d *DownloadOptions) Download(e config.EnvObjects) error {
+	log.Infof("Checking if the user is a valid user")
 
-	log.Info("Obtaining the files under the greenplum version: " + ver)
+	// Initializing the response struct & store all the env configuration
+	r := ResponseBody{}
+	r.Env = e
+	r.Flags = *d
 
-	// Extract all the files from the API
-	VersionApiResponse, err := GetApi("GET", url, false, "", 0)
-	core.Fatal_handler(err)
-
-	// Load it to struct
-	json.Unmarshal(VersionApiResponse, &VersionJsonType)
-
-	// Updating the EULA Acceptance link
-	EULA = VersionJsonType.Links.Eula_acceptance.Href
-
-	// Return the result
-	return VersionJsonType, nil
-}
-
-// Ask user what file in that version are they interested in downloading
-// Default is to download GPDB, GPCC and other with a option from parser
-func which_product(versionJson VersionObjects, VerToDownload string) error {
-
-	// Clearing up the buffer to ensure we are using a clean array and MAP
-	ProductOutputMap = make(map[string]string)
-	ProductOptions = []string{}
-
-	// Not sure why from 5.0 beta version, all the files are listed inside Product file
-	// Since the list is not a correct and its not what all the other product
-	// follows , will ask the user to choose from it
-	if len(versionJson.Product_files) >= 2 && ( strings.Contains(VerToDownload, "beta") || strings.Contains(VerToDownload, "alpha") ){
-		for _,k := range versionJson.Product_files {
-			ProductOutputMap[k.Name] = k.Links.Self.Href
-			ProductOptions = append(ProductOptions, k.Name)
-		}
-	} else { // This is the correct API, all the files are inside the file group MAP
-		for _, k := range versionJson.File_groups {
-
-			// GPDB Options
-			if core.RequestedDownloadProduct == "gpdb" {
-				// Default Download which is download the GPDB for Linux (no choice)
-				if strings.Contains(k.Name, DBServer) {
-					for _, j := range k.Product_files {
-						for _, name := range FileNameContains {
-							if strings.Contains(j.Name, name) && !strings.Contains(j.Name, IgnoreFileExtension) {
-								fmt.Println(j.Name, name)
-								ProductFileURL = j.Links.Self.Href
-								DownloadURL = j.Links.Download.Href
-							}
-						}
-					}
-				}
-			}
-
-			// GPCC option
-			if core.RequestedDownloadProduct == "gpcc" {
-				if strings.Contains(k.Name, GPCC) {
-					for _, j := range k.Product_files {
-						ProductOutputMap[j.Name] = j.Links.Self.Href
-						ProductOptions = append(ProductOptions, j.Name)
-					}
-				}
-			}
-
-			// Others or fallback method
-			if core.RequestedDownloadProduct == "gpextras" {
-				for _, j := range k.Product_files {
-					ProductOutputMap[j.Name] = j.Links.Self.Href
-					ProductOptions = append(ProductOptions, j.Name)
-				}
-			}
-
-		}
+	// Check the Authentication Token
+	_, err := r.GetApi("GET", Authentication)
+	if err != nil {
+		return err
 	}
-
-	// If its GPCC or GPextras, then ask users for choice.
-	if (core.RequestedDownloadProduct == "gpextras" || core.RequestedDownloadProduct == "gpcc") && len(ProductOptions) != 0 {
-		fmt.Println()
-		for index, product := range ProductOptions {
-			fmt.Printf("%d: %s\n", index+1, product)
-		}
-		TotalOptions := len(ProductOptions)
-		users_choice := core.Prompt_choice(TotalOptions)
-		version_selected_url := ProductOutputMap[ProductOptions[users_choice-1]]
-		ProductFileURL = version_selected_url
-		DownloadURL = version_selected_url + "/download"
-	}
-	return nil
-}
-
-// extract the filename and the size of the product that the user has choosen
-func extract_filename_and_size (url string) error {
-
-	log.Info("Extracting the filename and the size of the product file.")
-
-	// Obtain the JSON response of the product file API
-	ProductFileApiResponse, err := GetApi("GET", url, false , "" , 0)
-	if err != nil {return err}
-
-	// Store it on JSON
-	json.Unmarshal(ProductFileApiResponse, &ProductFileJsonType)
-
-	// Get the filename and the file size
-	filename := strings.Split(ProductFileJsonType.Product_file.Aws_object_key, "/")
-	ProductFileName = filename[len(filename)-1]
-	ProductFileSize = ProductFileJsonType.Product_file.Size
-
-	return err
-
-}
-
-func Download() error {
-
-	// Authentication validations
-	log.Info("Checking if the user is a valid user")
-	_, err := GetApi("GET", Authentication, false, "", 0)
-	if err != nil {return err}
 
 	// Product list
-	productJson, err := extract_product()
-	if err != nil {return err}
+	err = r.ExtractProduct()
+	if err != nil {
+		return err
+	}
 
 	// Release list
-	releaseJson, err := extract_release(productJson)
-	if err != nil {return err}
+	err = r.ExtractRelease()
+	if err != nil {
+		return err
+	}
 
-	// What is user's choice
-	choice, choice_url, err := show_available_version(releaseJson)
-	if err != nil {return err}
-
-	// Set the of Install if the user has asked to install after download and not version information is available
-	if core.InstallAfterDownload { core.RequestedInstallVersion = choice }
+	// Ask the user on what version do they want
+	err = r.ShowAvailableVersion()
+	if err != nil {
+		return err
+	}
 
 	// Get all the files under that version
-	versionFileJson, err := extract_downloadURL(choice, choice_url)
-	if err != nil {return err}
+	err = r.ExtractDownloadURL()
+	if err != nil {
+		return err
+	}
 
 	// The users choice to what to download from that version
-	err = which_product(versionFileJson, choice)
-	if err != nil {return err}
-
-	// If we didn't find the database File, then fall back to interactive mode.
-	if (core.RequestedDownloadProduct == "gpdb" || core.RequestedDownloadProduct == "gpcc") && ProductFileURL == "" {
-		log.Warning("Couldn't find binaries for GPDB version \"" + choice + "\", failing back to interactive mode...")
-		core.RequestedDownloadProduct = "gpextras"
-		which_product(versionFileJson, choice)
+	err = r.WhichProduct()
+	if err != nil {
+		return err
 	}
 
 	// Extract the filename and the size of the file
-	err = extract_filename_and_size(ProductFileURL)
-	if err != nil {return err}
+	err = r.ExtractFileNamePlusSize()
+	if err != nil {
+		return err
+	}
 
 	// Accept the EULA
-	log.Info("Accepting the EULA (End User License Agreement): " + EULA)
-	_, err = GetApi("POST", EULA, false, "", 0)
-	if err != nil {return err}
+	log.Info("Accepting the EULA (End User License Agreement): " + r.EULALink)
+	_, err = r.GetApi("POST", r.EULALink)
+	if err != nil {
+		return err
+	}
 
-	// Download the version
-	log.Info("Starting downloading of file: " + ProductFileName)
-	if DownloadURL != "" {
-		_, err := GetApi("GET", DownloadURL, true, ProductFileName, ProductFileSize)
-		if err != nil {return err}
+	// All hard work is now done, lets download the version
+	log.Info("Starting downloading of file: " + r.UserRequest.ProductFileName)
+	if r.UserRequest.DownloadURL != "" {
+		r.download = true
+		_, err := r.GetApi("GET", r.UserRequest.DownloadURL)
+		if err != nil {
+			r.download = false
+			return err
+		}
+		r.download = false
+		log.Info("Downloaded file available at: " + r.UserRequest.ProductFileName)
 	} else {
-		return errors.New("Download URL is blank, cannot download the product.")
+		return fmt.Errorf("download URL is blank, cannot download the product")
 	}
 
 	return nil

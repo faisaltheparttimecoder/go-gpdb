@@ -15,7 +15,6 @@ func Contains(s []string, e string) bool {
 	return false
 }
 
-
 // Check is the value is empty
 func IsValueEmpty(v string) bool {
 	if len(strings.TrimSpace(v)) == 0 {
@@ -23,7 +22,6 @@ func IsValueEmpty(v string) bool {
 	}
 	return false
 }
-
 
 // exists returns whether the given file or directory exists or not
 func DoesFileOrDirExists(path string) (bool, error) {

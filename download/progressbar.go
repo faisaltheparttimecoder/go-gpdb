@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"time"
 	"os"
-	"github.com/ielizaga/piv-go-gpdb/core"
 )
 
 // Progress of download
-func PrintDownloadPercent(done chan int64, path string, total int64) {
+func PrintDownloadPercent(done chan int64, path string, total int64) error {
 
 	var stop bool = false
 
@@ -20,11 +19,16 @@ func PrintDownloadPercent(done chan int64, path string, total int64) {
 
 			// Open the file
 			file, err := os.Open(path)
-			core.Fatal_handler(err)
+			if err != nil {
+				return fmt.Errorf("%v", err)
+			}
+
 
 			// Get stats of the file
 			fi, err := file.Stat()
-			core.Fatal_handler(err)
+			if err != nil {
+				return fmt.Errorf("%v", err)
+			}
 
 			// Size now
 			size := fi.Size()
@@ -44,11 +48,12 @@ func PrintDownloadPercent(done chan int64, path string, total int64) {
 		// Download is completed, time to terminate
 		if stop {
 			log.Info("Downloading completed ....")
-			log.Info("Downloaded file available at: " + path)
 			break
 		}
 
 		// Ask to sleep, before repainting the screen.
 		time.Sleep(time.Second)
 	}
+
+	return nil
 }
