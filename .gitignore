@@ -8,3 +8,6 @@
 # Files
 .DS_Store
 UAA.token
+
+.idea
+gpdb/vendor/
