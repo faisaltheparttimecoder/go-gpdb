@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"github.com/ryanuber/columnize"
 	"os"
 	"strings"
+	"time"
 )
 
 // Function that checks if the string is available on a array.
@@ -49,5 +52,69 @@ func CreateDir(path string) {
 		if err != nil {
 			Fatalf("Failed to create the directory, the error: %v", err)
 		}
+	}
+}
+
+// Print the data in tabular format
+func printOnScreen(message string, content []string) {
+
+	// Message before the table
+	fmt.Printf("\n%s\n\n", message)
+
+	// Print the table format
+	result := columnize.SimpleFormat(content)
+
+	// Print the results
+	fmt.Println(result + "\n")
+
+}
+
+// Progress of download
+func PrintDownloadPercent(done chan int64, path string, total int64) {
+
+	var stop bool = false
+
+	for {
+		select {
+		case <-done:
+			stop = true
+		default:
+
+			// Open the file
+			file, err := os.Open(path)
+			if err != nil {
+				Fatalf("Error in opening the file, err: %v", err)
+			}
+
+			// Get stats of the file
+			fi, err := file.Stat()
+			if err != nil {
+				Fatalf("Error in obtaining the stats of the file, err: %v", err)
+			}
+
+			// Size now
+			size := fi.Size()
+
+			// Display Progress of download
+			if size == 0 {
+				size = 1
+			}
+
+			var percent float64 = float64(size) / float64(total) * 100
+			var bytesToMB float64 = 1024 * 1024
+
+			fmt.Printf("Downloading file %.2f MB of %.2f MB: %.0f", float64(size)/bytesToMB, float64(total)/bytesToMB, percent)
+			fmt.Println("% completed")
+		}
+
+		// Download is completed, time to terminate
+		if stop {
+			Info("Downloading completed ....")
+			Infof("Downloaded file available at: %s", path)
+			break
+		}
+
+		// Ask to sleep, before repainting the screen.
+		time.Sleep(time.Second)
 	}
 }

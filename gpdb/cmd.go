@@ -36,8 +36,8 @@ var downloadCmd = &cobra.Command{
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		// Search the tile from all the labs
-		fmt.Println("will run download one day")
+		// Run download to download the binaries
+		Download()
 	},
 }
 

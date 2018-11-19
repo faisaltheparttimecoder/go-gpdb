@@ -78,28 +78,33 @@ func validateConfiguration() {
 		Config.INSTALL.FUTUREREFDIR = "/future_reference/"
 	}
 
+	// Check if API Token
+	if IsValueEmpty(Config.DOWNLOAD.APITOKEN) || Config.DOWNLOAD.APITOKEN == "<API TOKEN>" {
+		Fatal("The API Token is either missing or not provided, please update the config file and try again")
+	}
+
 	// Check if the directory exists, else create one.
 	base_dir := Config.CORE.BASEDIR + Config.CORE.APPLICATIONNAME
 
 	// Temp the files to
-	TempDir :=  base_dir + Config.CORE.TEMPDIR
-	CreateDir(TempDir)
+	Config.CORE.TEMPDIR =  base_dir + Config.CORE.TEMPDIR
+	CreateDir(Config.CORE.TEMPDIR)
 
 	// Download the files to
-	DownloadDir :=  base_dir + Config.DOWNLOAD.DOWNLOADDIR
-	CreateDir(DownloadDir)
+	Config.DOWNLOAD.DOWNLOADDIR = base_dir + Config.DOWNLOAD.DOWNLOADDIR
+	CreateDir(Config.DOWNLOAD.DOWNLOADDIR)
 
 	// Environment location
-	EnvFileDir := base_dir + Config.INSTALL.ENVDIR
-	CreateDir(EnvFileDir)
+	Config.INSTALL.ENVDIR = base_dir + Config.INSTALL.ENVDIR
+	CreateDir(Config.INSTALL.ENVDIR)
 
 	// Uninstall location
-	UninstallDir := base_dir + Config.INSTALL.UNINTSALLDIR
-	CreateDir(UninstallDir)
+	Config.INSTALL.UNINTSALLDIR = base_dir + Config.INSTALL.UNINTSALLDIR
+	CreateDir(Config.INSTALL.UNINTSALLDIR)
 
 	// Future Reference location
-	FutureRefDir := base_dir + Config.INSTALL.FUTUREREFDIR
-	CreateDir(FutureRefDir)
+	Config.INSTALL.FUTUREREFDIR = base_dir + Config.INSTALL.FUTUREREFDIR
+	CreateDir(Config.INSTALL.FUTUREREFDIR)
 
 }
 

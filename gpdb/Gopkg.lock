@@ -42,6 +42,14 @@
   version = "v1"
 
 [[projects]]
+  digest = "1:70537147f6ac44be08251f350024f3071969d39d4900d87d884d01f1c765f091"
+  name = "github.com/ryanuber/columnize"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "983d3a5fab1bf04d1b412465d2d9f8430e2e917e"
+  version = "v2.1.0"
+
+[[projects]]
   digest = "1:69b1cc331fca23d702bd72f860c6a647afd0aa9fcbc1d0659b1365e26546dd70"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
@@ -98,6 +106,7 @@
   input-imports = [
     "github.com/jinzhu/configor",
     "github.com/op/go-logging",
+    "github.com/ryanuber/columnize",
     "github.com/sirupsen/logrus",
     "github.com/spf13/cobra",
     "gopkg.in/yaml.v2",
