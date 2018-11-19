@@ -34,14 +34,6 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:5b3b29ce0e569f62935d9541dff2e16cc09df981ebde48e82259076a73a3d0c7"
-  name = "github.com/op/go-logging"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "b2cb9fa56473e98db8caba80237377e83fe44db5"
-  version = "v1"
-
-[[projects]]
   digest = "1:70537147f6ac44be08251f350024f3071969d39d4900d87d884d01f1c765f091"
   name = "github.com/ryanuber/columnize"
   packages = ["."]
@@ -105,11 +97,9 @@
   analyzer-version = 1
   input-imports = [
     "github.com/jinzhu/configor",
-    "github.com/op/go-logging",
     "github.com/ryanuber/columnize",
     "github.com/sirupsen/logrus",
     "github.com/spf13/cobra",
-    "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

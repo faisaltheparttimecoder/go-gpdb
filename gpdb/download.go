@@ -8,12 +8,9 @@ import (
 // All the PivNet Url's & Constants
 const (
 	EndPoint = "https://network.pivotal.io"
-	Authentication = EndPoint + "/api/v2/authentication"
 	RefreshToken = EndPoint + "/api/v2/authentication/access_tokens"
 	Products =  EndPoint + "/api/v2/products"
 	ProductSlug = "pivotal-gpdb" // we only care about this slug rest we ignore
-	DBServer = "Database Server"
-	GPCC = "Greenplum Command Center"
 )
 
 var (
