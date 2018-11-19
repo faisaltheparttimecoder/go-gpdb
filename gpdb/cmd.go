@@ -158,8 +158,9 @@ var envCmd = &cobra.Command{
 	Long:  "Env sub-command helps to show all the products version installed",
 	Example: fmt.Sprintf(envExample(), programName),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Search the tile from all the labs
-		fmt.Println("will run env one day")
+		// search the env directory for the environment files
+		// and broadcast to the user
+		envListing()
 	},
 }
 
