@@ -29,6 +29,9 @@ type HrefType struct {
 
 type LinksType struct {
 	Self   HrefType `json:"self"`
+	Releases   HrefType `json:"releases"`
+	Product_files   HrefType `json:"product_files"`
+	File_groups   HrefType `json:"file_groups"`
 	Signature_file_download HrefType `json:"signature_file_download"`
 	Eula_acceptance HrefType `json:"eula_acceptance"`
 	User_groups HrefType `json:"user_groups"`
