@@ -141,7 +141,7 @@ func fileInfo(skip int) string {
 }
 
 // Setup or Initialize the logger
-func initLogger(version bool)  {
+func initLogger(verbose bool)  {
 
 	// Set the formatter option for logrus
 	formatter := new(logrus.TextFormatter)
@@ -152,7 +152,7 @@ func initLogger(version bool)  {
 	SetLogFormatter(formatter)
 
 	// if log level
-	if version {
+	if verbose {
 		SetLogLevel(logrus.DebugLevel)
 	} else {
 		SetLogLevel(logrus.InfoLevel)

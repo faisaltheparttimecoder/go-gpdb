@@ -29,7 +29,7 @@ var downloadCmd = &cobra.Command{
 	Short: "Download the product from pivotal network",
 	Long:  "Download sub-command helps to download the products that are greenplum related from pivotal network",
 	Example: fmt.Sprintf(downloadExample(), programName),
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PreRun: func(cmd *cobra.Command, args []string) {
 		// Accept only the options that we care about
 		if !Contains(AcceptedDownloadProduct, cmdOptions.Product) {
 			Fatalf("Invalid product option specified: %s, Accepted Options: %v", cmdOptions.Product, AcceptedDownloadProduct)
@@ -87,7 +87,7 @@ var installCmd = &cobra.Command{
 	Short: "Install the product downloaded from download command",
 	Long:  "Install sub-command helps to install the products that was downloaded using the download command",
 	Example: fmt.Sprintf(installExample(), programName),
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PreRun: func(cmd *cobra.Command, args []string) {
 		// Accept only the options that we care about
 		if !Contains(AcceptedInstallProduct, cmdOptions.Product) {
 			Fatalf("Invalid product option specified: %s, Accepted Options: %v", cmdOptions.Product, AcceptedInstallProduct)
@@ -182,13 +182,15 @@ func envExample() string {
 // The root CLI.
 var rootCmd = &cobra.Command{
 	Use:   fmt.Sprintf("%s [command]", programName),
-	Short: "",
-	Long: "This repo helps to download, install, remove and manage the software of GPDB / GPCC",
+	Short: "Download / install / remove and manage the software of GPDB products",
+	Long: "This repo helps to download / install / remove and manage the software of GPDB products",
+	Version: programVersion,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Before running any command Setup the logger log level
 		initLogger(cmdOptions.Debug)
+		// Load all the configuration to the memory
+		config()
 	},
-	Version: programVersion,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 { // if no argument specified throw the help menu on the screen
 			cmd.Help()
